@@ -2,8 +2,8 @@
 VERSION = 5
 PATCHLEVEL = 17
 SUBLEVEL = 0
-EXTRAVERSION = -rc3
-NAME = Gobble Gobble
+EXTRAVERSION = -rc6
+NAME = Superb Owl
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
@@ -536,7 +536,8 @@ KBUILD_RUST_TARGET := $(srctree)/arch/$(SRCARCH)/rust/target.json
 KBUILD_RUSTFLAGS := --edition=2021 \
 		     -Cpanic=abort -Cembed-bitcode=n -Clto=n -Crpath=n \
 		     -Cforce-unwind-tables=n -Ccodegen-units=1 \
-		     -Zbinary_dep_depinfo=y -Zsymbol-mangling-version=v0 \
+		     -Csymbol-mangling-version=v0 \
+		     -Zbinary_dep_depinfo=y \
 		     -Dunsafe_op_in_unsafe_fn -Drust_2018_idioms \
 		     -Dunreachable_pub -Dnon_ascii_idents \
 		     -Wmissing_docs \
