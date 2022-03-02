@@ -24,6 +24,7 @@
 #include <linux/irqdomain.h>
 #include <linux/amba/bus.h>
 #include <linux/gpio/driver.h>
+#include <crypto/hash.h>
 
 // `bindgen` gets confused at certain things
 const gfp_t BINDINGS_GFP_KERNEL = GFP_KERNEL;
