@@ -14,26 +14,48 @@ struct shash_desc {
     pub(crate) ptr: *mut bindings::shash_desc,
 }
 
+// https://elixir.bootlin.com/linux/latest/source/include/crypto/hash.h#L150
+impl shash_desc {
+    pub unsafe fn new()
+}
+
 // https://github.com/torvalds/linux/blob/master/include/crypto/hash.h#L42
 struct hash_alg_common {
     pub(crate) ptr: *mut bindings::hash_alg_common,
 }
 
-impl hash_alg_common {
-
+// https://elixir.bootlin.com/linux/latest/source/include/crypto/hash.h#L239
+struct crypto_shash {
+    pub(crate) ptr: *mut bindings::crypto_shash
 }
 
-pub 'a struct sdesc {
+// fixating size to 32, just for testing
+pub struct sdesc {
     pub shash: shash_desc,
-    pub ctx: &'a [u8]
+    pub ctx: [u8; 32]
 }
 
-pub '_ trait Hash {
-    pub '_ sdesc: crate::sdesc,
-
+// set attributes: https://github.com/Rust-for-Linux/linux/blob/rust/rust/kernel/file.rs#L42
+impl sdesc {
+    pub unsafe fn init(alg: *mut bindings::crypto_shash ) -> Self {
+        let s: shash_desc =
+        Self {
+            shash.tfm = alg,
+        }
+    }
 }
 
-impl Hash {
-    pub fn new() -> Self {}
-    pub fn hash() -> &[u8] {}
+
+pub trait Hash {
+    pub unsafe fn digest() -> &'static [u8] {}
+}
+
+pub struct Sha256 {
+    state: [u8; 32]
+}
+
+impl Hash for Sha256 {
+    pub unsafe fn digest() -> &'static [u8] {
+
+    }
 }
