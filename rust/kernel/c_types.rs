@@ -58,6 +58,9 @@ mod c {
     /// For some 32-bit architectures like this one, the kernel defines it as
     /// `unsigned int`, i.e. it is an [`u32`].
     pub type c_size_t = usize;
+
+    /// C `sector_t` type
+    pub type c_sector_t = u64;
 }
 
 #[cfg(any(
@@ -114,6 +117,9 @@ mod c {
     /// For 64-bit architectures like this one, the kernel defines it as
     /// `unsigned long`, i.e. it is an [`u64`].
     pub type c_size_t = usize;
+
+    /// C `sector_t` type
+    pub type c_sector_t = u64;
 }
 
 pub use c::*;

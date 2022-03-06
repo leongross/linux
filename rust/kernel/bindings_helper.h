@@ -24,7 +24,7 @@
 #include <linux/irqdomain.h>
 #include <linux/amba/bus.h>
 #include <linux/gpio/driver.h>
-#include </linux/device-mapper.h>
+#include <linux/device-mapper.h>
 #include <linux/blk_types.h>
 #include <linux/bio.h>
 
