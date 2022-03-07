@@ -27,6 +27,7 @@
 #include <linux/device-mapper.h>
 #include <linux/blk_types.h>
 #include <linux/bio.h>
+#include <linux/bvec.h>
 
 // `bindgen` gets confused at certain things
 const gfp_t BINDINGS_GFP_KERNEL = GFP_KERNEL;

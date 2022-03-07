@@ -9,8 +9,11 @@ use crate::{
     str::CStr,
     Result,
     c_types,
-    bio
+    bio,
+    error,
 }
+
+use core::convert::TryInto;
 
 #[repr(C)]
 pub struct TargetType {
@@ -20,12 +23,13 @@ pub struct TargetType {
     version: [u8; 3],
 }
 
-pub unsafe fn dm_register_target<T>(t: &T) -> Option<u8>
+pub unsafe fn dm_register_target<T>(t: &T) -> error::Result
     where T: target_type {
     unsafe {
         // is this a good idea? maybe it is better to operate on the raw struct?
-        bindings::dm_register_target(t);
+        bindings::dm_register_target(t.as_mut_ptr() as *mut dm_target);
     }
+    Ok(())
 
 }
 
