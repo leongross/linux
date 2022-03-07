@@ -5,6 +5,7 @@
 //! C header: [`/include/linux/device-mapper.h`](../../../../include/linux/device-mapper.h)
 
 #![allow(unused_imports)]
+use crate::linked_list::Wrapper;
 use crate::{bindings, bio, c_types, error, str::CStr, Result, ThisModule};
 use core::convert::TryInto;
 
@@ -12,7 +13,7 @@ use core::convert::TryInto;
 pub struct TargetType<'a> {
     features: u64,
     name: &'a str,
-    module: ThisModule,
+    module: &ThisModule,
     version: [u8; 3],
 }
 
@@ -22,7 +23,7 @@ where
 {
     unsafe {
         // is this a good idea? maybe it is better to operate on the raw struct?
-        bindings::dm_register_target(t.as_mut_ptr() as *mut dm_target);
+        bindings::dm_register_target(t.as_ref() as *mut dm_target);
     }
     Ok(())
 }
@@ -35,7 +36,7 @@ pub struct dm_target {
 impl dm_target {}
 
 pub trait target_type {
-    unsafe fn new(features: u64, name: &str, version: [u8; 8], module: &ThisModule);
+    unsafe fn new(features: u64, name: &str, version: [u8; 3], module: &ThisModule) -> Self;
     unsafe fn ctr(
         target: *mut dm_target,
         argc: *mut c_types::c_uint,
@@ -47,7 +48,7 @@ pub trait target_type {
 
 /// Defining the necessary targets to implement
 impl target_type for TargetType<'_> {
-    fn new(features: u64, name: &str, version: [u8; 8], module: &ThisModule) -> Self {
+    unsafe fn new(features: u64, name: &str, version: [u8; 3], module: &ThisModule) -> Self {
         TargetType {
             features,
             name,
@@ -55,4 +56,12 @@ impl target_type for TargetType<'_> {
             version,
         }
     }
+    unsafe fn ctr(
+        target: *mut dm_target,
+        argc: *mut c_types::c_uint,
+        argv: *mut *mut c_types::c_char,
+    ) {
+    }
+    unsafe fn dtr(target: *mut dm_target) {}
+    unsafe fn map(target: *mut dm_target, bio: bio::Bio) {}
 }

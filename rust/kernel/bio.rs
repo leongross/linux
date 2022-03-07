@@ -8,8 +8,8 @@
 use crate::{bindings, c_types};
 
 // using tuple structs for simplicity: https://doc.rust-lang.org/std/keyword.struct.html
-pub struct Bio ( *mut bindings::bio );
-pub struct BioVec ( *mut bindings::bio_vec );
+pub struct Bio(*mut bindings::bio);
+pub struct BioVec(*mut bindings::bio_vec);
 
 impl Bio {
     pub unsafe fn new(bio: *mut bindings::bio) -> Self {
@@ -18,9 +18,9 @@ impl Bio {
 
     // https://elixir.bootlin.com/linux/latest/source/include/linux/bio.h#L406
     pub unsafe fn init(&mut self, table: &BioVec, max_vecs: c_types::c_ushort) -> Self {
-        unsafe {
-            bindings::bio_init(&mut self.0, table.0, max_vecs);
-        }
+        Self(unsafe {
+            bindings::bio_init(self.0, table.0, max_vecs);
+        })
     }
     // pub unsafe fn add_page(&mut self, )
 }
@@ -34,6 +34,6 @@ impl BioVec {
 // compare with clk struct: https://elixir.bootlin.com/linux/latest/source/include/linux/clk.h#L961
 impl Drop for Bio {
     fn drop(&mut self) {
-        unsafe { bindings::bio_uninit(self.0)}
+        unsafe { bindings::bio_uninit(self.0) }
     }
 }
