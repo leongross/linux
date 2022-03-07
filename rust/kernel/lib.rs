@@ -64,6 +64,9 @@ pub mod security;
 pub mod str;
 pub mod task;
 
+pub mod device_mapper;
+pub mod bio;
+
 pub mod linked_list;
 mod raw_list;
 pub mod rbtree;

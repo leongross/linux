@@ -5,9 +5,10 @@
 //! C header: [`include/linux/bio.h`](../../../../include/linux/bio.h)
 //! C header: [`include/linux/bvec.h`]
 
+use crate::{bindings, c_types};
 
 // using tuple structs for simplicity: https://doc.rust-lang.org/std/keyword.struct.html
-pub struct Bio ( *mut bindings::bio };
+pub struct Bio ( *mut bindings::bio );
 pub struct BioVec ( *mut bindings::bio_vec );
 
 impl Bio {
@@ -16,7 +17,7 @@ impl Bio {
     }
 
     // https://elixir.bootlin.com/linux/latest/source/include/linux/bio.h#L406
-    pub unsafe fn init(&mut self, table: &BioVec, max_vecs: c_types::c_ushort) -> {
+    pub unsafe fn init(&mut self, table: &BioVec, max_vecs: c_types::c_ushort) -> Self {
         unsafe {
             bindings::bio_init(&mut self.0, table.0, max_vecs);
         }
@@ -26,7 +27,7 @@ impl Bio {
 
 impl BioVec {
     pub unsafe fn new(biov: *mut bindings::bio_vec) -> Self {
-        Self(bio)
+        Self(biov)
     }
 }
 
