@@ -68,6 +68,8 @@ pub mod linked_list;
 mod raw_list;
 pub mod rbtree;
 
+pub mod crypto;
+
 #[doc(hidden)]
 pub mod module_param;
 
