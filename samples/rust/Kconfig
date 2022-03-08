@@ -20,6 +20,17 @@ config SAMPLE_RUST_MINIMAL
 
 	  If unsure, say N.
 
+
+config SAMPLE_RUST_HASH
+	tristate "Hashing"
+	help
+	  This option builds the Hashing sample.
+
+	  To compile this as a module, choose M here:
+	  the module will be called rust_hash.
+
+	  If unsure, say N.
+
 config SAMPLE_RUST_PRINT
 	tristate "Printing macros"
 	help
