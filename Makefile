@@ -437,13 +437,32 @@ else
 HOSTCC	= gcc
 HOSTCXX	= g++
 endif
+HOSTRUSTC = rustc
 
 export KBUILD_USERCFLAGS := -Wall -Wmissing-prototypes -Wstrict-prototypes \
 			      -O2 -fomit-frame-pointer -std=gnu89
 export KBUILD_USERLDFLAGS :=
 
+# These flags apply to all Rust code in the tree, including the kernel and
+# host programs.
+rust_common_flags := --edition=2021 \
+		     -Zbinary_dep_depinfo=y \
+		     -Dunsafe_op_in_unsafe_fn -Drust_2018_idioms \
+		     -Dunreachable_pub -Dnon_ascii_idents \
+		     -Wmissing_docs \
+		     -Drustdoc::missing_crate_level_docs \
+		     -Dclippy::correctness -Dclippy::style \
+		     -Dclippy::suspicious -Dclippy::complexity \
+		     -Dclippy::perf \
+		     -Dclippy::let_unit_value -Dclippy::mut_mut \
+		     -Dclippy::needless_bitwise_bool \
+		     -Dclippy::needless_continue \
+		     -Wclippy::dbg_macro
+
 KBUILD_HOSTCFLAGS   := $(KBUILD_USERCFLAGS) $(HOST_LFS_CFLAGS) $(HOSTCFLAGS)
 KBUILD_HOSTCXXFLAGS := -Wall -O2 $(HOST_LFS_CFLAGS) $(HOSTCXXFLAGS)
+KBUILD_HOSTRUSTFLAGS := $(rust_common_flags) -O -Zallow-features= \
+			$(HOSTRUSTFLAGS)
 KBUILD_HOSTLDFLAGS  := $(HOST_LFS_LDFLAGS) $(HOSTLDFLAGS)
 KBUILD_HOSTLDLIBS   := $(HOST_LFS_LIBS) $(HOSTLDLIBS)
 
@@ -532,21 +551,12 @@ KBUILD_CFLAGS   := -Wall -Wundef -Werror=strict-prototypes -Wno-trigraphs \
 		   -Werror=return-type -Wno-format-security \
 		   -std=gnu89
 KBUILD_CPPFLAGS := -D__KERNEL__
-KBUILD_RUST_TARGET := $(srctree)/arch/$(SRCARCH)/rust/target.json
-KBUILD_RUSTFLAGS := --edition=2021 \
-		     -Cpanic=abort -Cembed-bitcode=n -Clto=n -Crpath=n \
-		     -Cforce-unwind-tables=n -Ccodegen-units=1 \
-		     -Csymbol-mangling-version=v0 \
-		     -Zbinary_dep_depinfo=y \
-		     -Dunsafe_op_in_unsafe_fn -Drust_2018_idioms \
-		     -Dunreachable_pub -Dnon_ascii_idents \
-		     -Wmissing_docs \
-		     -Drustdoc::missing_crate_level_docs \
-		     -Dclippy::correctness -Dclippy::style -Dclippy::suspicious \
-		     -Dclippy::complexity -Dclippy::perf -Dclippy::float_arithmetic \
-		     -Dclippy::let_unit_value -Dclippy::mut_mut \
-		     -Dclippy::needless_bitwise_bool -Dclippy::needless_continue \
-		     -Wclippy::dbg_macro
+KBUILD_RUSTFLAGS := $(rust_common_flags) \
+		    -Cpanic=abort -Cembed-bitcode=n -Clto=n -Crpath=n \
+		    -Cforce-unwind-tables=n -Ccodegen-units=1 \
+		    -Csymbol-mangling-version=v0 \
+		    -Dclippy::float_arithmetic
+
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
 KBUILD_RUSTFLAGS_KERNEL :=
@@ -573,6 +583,7 @@ export RUSTC_BOOTSTRAP := 1
 
 export ARCH SRCARCH CONFIG_SHELL BASH HOSTCC KBUILD_HOSTCFLAGS CROSS_COMPILE LD CC
 export RUSTC RUSTDOC RUSTFMT RUSTC_OR_CLIPPY_QUIET RUSTC_OR_CLIPPY BINDGEN CARGO
+export HOSTRUSTC KBUILD_HOSTRUSTFLAGS
 export CPP AR NM STRIP OBJCOPY OBJDUMP READELF PAHOLE RESOLVE_BTFIDS LEX YACC AWK INSTALLKERNEL
 export PERL PYTHON3 CHECK CHECKFLAGS MAKE UTS_MACHINE HOSTCXX
 export KGZIP KBZIP2 KLZOP LZMA LZ4 XZ ZSTD
@@ -580,7 +591,7 @@ export KBUILD_HOSTCXXFLAGS KBUILD_HOSTLDFLAGS KBUILD_HOSTLDLIBS LDFLAGS_MODULE
 
 export KBUILD_CPPFLAGS NOSTDINC_FLAGS LINUXINCLUDE OBJCOPYFLAGS KBUILD_LDFLAGS
 export KBUILD_CFLAGS CFLAGS_KERNEL CFLAGS_MODULE
-export KBUILD_RUST_TARGET KBUILD_RUSTFLAGS RUSTFLAGS_KERNEL RUSTFLAGS_MODULE
+export KBUILD_RUSTFLAGS RUSTFLAGS_KERNEL RUSTFLAGS_MODULE
 export KBUILD_AFLAGS AFLAGS_KERNEL AFLAGS_MODULE
 export KBUILD_AFLAGS_MODULE KBUILD_CFLAGS_MODULE KBUILD_RUSTFLAGS_MODULE KBUILD_LDFLAGS_MODULE
 export KBUILD_AFLAGS_KERNEL KBUILD_CFLAGS_KERNEL KBUILD_RUSTFLAGS_KERNEL
@@ -1566,7 +1577,7 @@ MRPROPER_FILES += include/config include/generated          \
 		  certs/x509.genkey \
 		  vmlinux-gdb.py \
 		  *.spec \
-		  rust/libmacros.so
+		  rust/target.json rust/libmacros.so
 
 # clean - Delete most, but leave enough to build external modules
 #
