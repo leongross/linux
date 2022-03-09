@@ -4,6 +4,7 @@
 
 #ifdef CONFIG_RUST
 char *rust_fmt_argument(char* buf, char* end, void *ptr);
+int rust_called_from_c(int *base, size_t size);
 #else
 static inline char *rust_fmt_argument(char* buf, char* end, void *ptr)
 {
