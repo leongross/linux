@@ -42,6 +42,7 @@ pub struct hash_alg_common {
 
 impl crypto_shash {
     // https://elixir.bootlin.com/linux/latest/source/include/crypto/hash.h#L718
+    // use &'static CStr instead of &str
     pub unsafe fn crypto_alloc_shash(
         alg_name: &mut str,
         cipher_type: u32,
