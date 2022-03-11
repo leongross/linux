@@ -20,7 +20,7 @@ config SAMPLE_RUST_MINIMAL
 
 	  If unsure, say N.
 
-config CONFIG_SAMPLE_RUST_DEVICE_MAPPER
+config SAMPLE_RUST_DEVICE_MAPPER
 	tristate "Device Mapper"
 	help
 	  This option builds the Rust device mapper module sample.
