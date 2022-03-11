@@ -7,8 +7,10 @@
 
 use crate::{bindings, c_types};
 
+
+pub struct bio(*mut bindings::bio);
 // using tuple structs for simplicity: https://doc.rust-lang.org/std/keyword.struct.html
-pub struct Bio(*mut bindings::bio);
+/*
 pub struct BioVec(*mut bindings::bio_vec);
 
 impl Bio {
@@ -37,3 +39,4 @@ impl Drop for Bio {
         unsafe { bindings::bio_uninit(self.0) }
     }
 }
+ */
