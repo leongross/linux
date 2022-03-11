@@ -37,5 +37,8 @@ busybox  rmmod rust_semaphore_c.ko
 #busybox  rmmod rust_module_parameters_loadable_default.ko
 #busybox  rmmod rust_module_parameters_loadable_custom.ko
 
+busybox insmod rust_hash.ko
+busybox  rmmod rust_hash.ko
+
 exec /bin/sh
 #busybox reboot -f

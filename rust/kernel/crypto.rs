@@ -2,84 +2,72 @@
 //!
 //! C headers: [`include/crypto/hash.h>`](../../../../include/crypto/hash.h)
 
+// __IncompleteArrayField: https://users.rust-lang.org/t/how-to-work-with-incompletearrayfield-u8-from-bindgen/55404/3
+
+// https://doc.rust-lang.org/rustdoc/lints.html
+#![allow(rustdoc::broken_intra_doc_links)] // allows the lint, no diagnostics will be reported
+
 #[allow(unused_imports)]
-use crate::{bindings, c_types, error, Error, Result};
-use alloc::boxed::Box;
+use crate::{bindings, c_types, error, pr_info, str::CStr, Error, Result};
+// use alloc::boxed::Box;
 // use core::*;
 use core::convert::TryInto;
-
-// https://elixir.bootlin.com/linux/latest/source/include/crypto/hash.h#L239
-#[allow(non_camel_case_types)]
-pub struct crypto_shash {
-    pub(crate) ptr: *mut bindings::crypto_shash,
-}
-
 // https://elixir.bootlin.com/linux/latest/source/include/crypto/hash.h#L150
 #[allow(non_camel_case_types)]
-
-// pub struct shash_desc {
-//     pub tfm: *mut crypto_shash,
-//     pub __ctx: __IncompleteArrayField<*mut c_types::c_void>,
-
+#[derive(Debug)]
 pub struct shash_desc(*mut bindings::shash_desc);
 
 impl shash_desc {
     pub fn from(alg: &crypto_shash) -> Self {
-        Self (
-            &mut bindings::shash_desc {
-                tfm: alg.ptr,
-                __ctx: bindings::__IncompleteArrayField::new(),
-            }
-        )
+        Self(&mut bindings::shash_desc {
+            tfm: alg.ptr,
+            __ctx: [0u8, 32],
+        })
     }
 }
 
 // https://github.com/torvalds/linux/blob/master/include/crypto/hash.h#L42
 #[allow(non_camel_case_types)]
+#[derive(Debug)]
 pub struct hash_alg_common {
     pub(crate) ptr: *mut bindings::hash_alg_common,
 }
 
+// https://elixir.bootlin.com/linux/latest/source/include/crypto/hash.h#L239
+#[allow(non_camel_case_types)]
+#[derive(Debug)]
+pub struct crypto_shash {
+    pub(crate) ptr: *mut bindings::crypto_shash,
+}
+
+
 impl crypto_shash {
     // https://elixir.bootlin.com/linux/latest/source/include/crypto/hash.h#L718
-    // use &'static CStr instead of &str
-    pub unsafe fn crypto_alloc_shash(
-        alg_name: &mut str,
+    // use &'static CStr instead of &str, see amba.rs as reference
+    pub unsafe fn new(
+        name: &'static CStr,
         cipher_type: u32,
         cipher_mask: u32,
     ) -> Result<Self> {
-        let ptr = unsafe {
-            bindings::crypto_alloc_shash(
-                alg_name.as_mut_ptr() as *mut c_types::c_char,
-                cipher_type,
-                cipher_mask,
-            )
-        };
+        let ptr =
+            unsafe { bindings::crypto_alloc_shash(name.as_char_ptr(), cipher_type, cipher_mask) };
         if ptr.is_null() {
             return Err(Error::EBADF);
         }
         Ok(Self { ptr })
     }
 
-    /// Calculate hash of input and save it to the output
-    /// ```
-    /// use kernel::crypto;
-    ///
-    /// let mut input   = [0u8; 32];
-    /// let mut output  = [0u8; 32];
-    /// let c = crypto::crypto_alloc_shash("sha256", &input, &output).unwrap();
-    /// c.calc_hash(&mut input, &mut output);
-    /// ```
-    pub(crate) unsafe fn calc_hash(&mut self, input: &mut [u8], digest: &mut [u8]) -> c_types::c_int {
+    pub unsafe fn calc_hash(&self, data: &mut [u8], out: &mut [u8]) -> c_types::c_int {
         let s = unsafe { sdesc::new(&self) };
 
         // https://elixir.bootlin.com/linux/latest/source/include/crypto/hash.h#L867
         unsafe {
+            // pub fn crypto_shash_digest( desc: *mut shash_desc, data: *const u8_, len: c_types::c_uint, out: *mut u8_, ) -> c_types::c_int;
             bindings::crypto_shash_digest(
                 s.shash.0,
-                input.as_mut_ptr() as *mut c_types::c_uchar,
-                input.len().try_into().unwrap(),
-                digest.as_mut_ptr() as *mut c_types::c_uchar,
+                data.as_mut_ptr() as *mut c_types::c_uchar,
+                data.len().try_into().unwrap(),
+                out.as_mut_ptr() as *mut c_types::c_uchar,
             )
         }
     }
@@ -87,9 +75,10 @@ impl crypto_shash {
 // fixating size to 32, just for testing
 // the ctx will hold the digest, so it has to have a variable length depending on the selected cipher
 #[allow(non_camel_case_types)]
+#[derive(Debug)]
 pub struct sdesc {
     pub shash: shash_desc,
-    pub ctx: [u8; 32],
+    pub __ctx: bindings::__IncompleteArrayField<*mut c_types::c_void>,
 }
 
 // set attributes: https://github.com/Rust-for-Linux/linux/blob/rust/rust/kernel/file.rs#L42
@@ -97,13 +86,24 @@ pub struct sdesc {
 impl sdesc {
     pub unsafe fn new(alg: &crypto_shash) -> sdesc {
         // algo size: https://elixir.bootlin.com/linux/latest/source/include/crypto/hash.h#L826
-        //let algo_size: c_types::c_uint = unsafe { bindings::crypto_shash_descsize(alg.0) };
-        //if algo_size == 0 {
-        //    panic!("Hash algo size cannot be 0!")
-        //}
         Self {
             shash: shash_desc::from(alg),
-            ctx: [0u8; 32],
+            __ctx: bindings::__IncompleteArrayField::new(),
         }
     }
 }
+
+/*
+pub unsafe fn init_sdesc(cs: bindings::crypto_shash) -> bindings::shash_desc {}
+
+pub unsafe fn direct_hash_call(algo: &'static CStr, data: &mut [u8], out: &mut [u8]) -> i32 {
+    unsafe {
+        bindings::crypto_shash_digest(
+            bindings::crypto_alloc_shash(algo.as_char_ptr(), 0u32, 0u32),
+            data.as_mut_ptr() as *mut c_types::c_uchar,
+            data.len().try_into().unwrap(),
+            out.as_mut_ptr() as *mut c_types::c_uchar,
+        )
+    }
+}
+*/
