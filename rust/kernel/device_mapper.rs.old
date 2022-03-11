@@ -1,0 +1,73 @@
+// SPDX-License-Identifier: GPL-2.0
+
+//! Device mapper
+//!
+//! C header: [`/include/linux/device-mapper.h`](../../../../include/linux/device-mapper.h)
+
+#![allow(unused_imports)]
+use crate::linked_list::Wrapper;
+use crate::{bindings, bio, c_types, error, str::CStr, Result, ThisModule};
+use core::convert::TryInto;
+
+
+#[repr(C)]
+pub struct dm_target {
+    pub(crate) ptr: *mut bindings::dm_target,
+}
+
+pub unsafe fn dm_register_target<T>(t: &T) -> error::Result
+where
+    T: target_type,
+{
+    let r: i32 = unsafe {
+        // is this a good idea? maybe it is better to operate on the raw struct?
+        bindings::dm_register_target(t.as_ref() as *mut dm_target);
+    };
+
+    Ok(())
+}
+
+impl dm_target {}
+
+pub trait target_type {
+    unsafe fn new(features: u64, name: &str, version: [u8; 3], module: &ThisModule) -> Self;
+    unsafe fn ctr(
+        &mut self,
+        target: *mut dm_target,
+        argc: *mut c_types::c_uint,
+        argv: *mut *mut c_types::c_char,
+    );
+    unsafe fn dtr(target: *mut dm_target);
+    unsafe fn map(target: *mut dm_target, bio: bio::Bio);
+}
+
+/// Defining the necessary targets to implement
+/// How to handle function pointers: https://rust-lang.github.io/unsafe-code-guidelines/layout/function-pointers.html
+impl target_type for target_type {
+    unsafe fn new(features: u64, name: &str, version: [u8; 3], module: & 'static ThisModule) -> Self {
+        bindings::dm_target {
+
+        }
+    }
+
+    /*
+        pub type dm_ctr_fn = ::core::option::Option<
+            unsafe extern "C" fn(
+            target: *mut dm_target,
+            argc: c_types::c_uint,
+            argv: *mut *mut c_types::c_char,
+        ) -> c_types::c_int,
+    */
+    unsafe fn ctr(
+        &mut self,
+        target: *mut dm_target,
+        argc: *mut c_types::c_uint,
+        argv: *mut *mut c_types::c_char,
+    ) {
+        self.
+    }
+
+    // pub type dm_dtr_fn = ::core::option::Option<unsafe extern "C" fn(ti: *mut dm_target)>;
+    unsafe fn dtr(target: *mut dm_target) {}
+    unsafe fn map(target: *mut dm_target, bio: bio::Bio) {}
+}
