@@ -12,6 +12,9 @@ use crate::{bindings, c_types, error, pr_info, str::CStr, Error, Result};
 // use alloc::boxed::Box;
 // use core::*;
 use core::convert::TryInto;
+use core::alloc;
+use core::mem;
+
 // https://elixir.bootlin.com/linux/latest/source/include/crypto/hash.h#L150
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
@@ -19,10 +22,20 @@ pub struct shash_desc(*mut bindings::shash_desc);
 
 impl shash_desc {
     pub fn from(alg: &crypto_shash) -> Self {
-        Self(&mut bindings::shash_desc {
+        let count = 32;
+
+        let s = bindings::shash_desc {
             tfm: alg.ptr,
-            __ctx: [0u8, 32],
-        })
+            __ctx: bindings::__IncompleteArrayField::new(),
+        };
+
+        let layout = alloc::from_size_align(
+            mem::size_of::<usize>() + count * mem::size_of::<u8>(),
+            cmp::max(mem::align_of::<usize>(), mem::align_of::<u8>())
+        ).unwrap();
+        let value = unsafe{ alloc(layout) as *mut bindings::shash_desc };
+
+        Self(&mut value)
     }
 }
 
@@ -78,7 +91,7 @@ impl crypto_shash {
 #[derive(Debug)]
 pub struct sdesc {
     pub shash: shash_desc,
-    pub __ctx: bindings::__IncompleteArrayField<*mut c_types::c_void>,
+    pub __ctx: [u8; 32],
 }
 
 // set attributes: https://github.com/Rust-for-Linux/linux/blob/rust/rust/kernel/file.rs#L42
@@ -88,7 +101,7 @@ impl sdesc {
         // algo size: https://elixir.bootlin.com/linux/latest/source/include/crypto/hash.h#L826
         Self {
             shash: shash_desc::from(alg),
-            __ctx: bindings::__IncompleteArrayField::new(),
+            __ctx: [0u8; 32],
         }
     }
 }
