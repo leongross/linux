@@ -5,7 +5,6 @@
 //! C header: [`/include/linux/device-mapper.h`](../../../../include/linux/device-mapper.h)
 
 #![allow(unused_imports)]
-use crate::linked_list::Wrapper;
 use crate::{bindings, bio, c_types, error, str::CStr, Result, ThisModule};
 use core::convert::TryInto;
 
@@ -36,38 +35,50 @@ pub struct TargetType {
 /// let t: TargetType = TargetType::new()
 /// ```
 
+static TODO: i32 = 1337;
+
+pub trait Functions {
+    unsafe extern "C" fn ctr(
+        ti: *mut bindings::dm_target,
+        argc: u32,
+        argv: *mut *mut c_types::c_char,
+    ) -> i32 {
+        TODO
+    }
+    unsafe extern "C" fn dtr(ti: *mut bindings::dm_target) {}
+    unsafe extern "C" fn map(ti: *mut bindings::dm_target, bio: *mut bindings::bio) -> i32 {
+        TODO
+    }
+}
+
+impl Functions for TargetType{}
+unsafe impl Sync for TargetType{}
+
 impl TargetType {
     pub unsafe fn new(
         name: &'static CStr,
         version: [u32; 3],
         module: &'static ThisModule,
-        //ctr: unsafe extern "C" fn(ti: *mut dm_target, argc: u32, argv: *mut *mut c_types::c_char) -> i32,
-        //dtr: unsafe extern "C" fn(ti: *mut dm_target),
-        //map: unsafe extern "C" fn(ti: *mut dm_target, bio: *mut bindings::bio) -> i32,
-        ctr: bindings::dm_ctr_fn,
-        dtr: bindings::dm_dtr_fn,
-        map: bindings::dm_map_fn,
-        //status: unsafe extern "C" fn(
-        //    ti: *mut dm_target,
-        //    status_type: bindings::status_type_t,
-        //    status_flags: i32,
-        //    result: *mut c_types::c_char,
-        //    maxlen: i32,
-        //),
+        //ctr: unsafe extern "C" fn(ti: *mut bindings::dm_target, argc: u32, argv: *mut *mut c_types::c_char) -> i32,
+        //dtr: unsafe extern "C" fn(ti: *mut bindings::dm_target),
+        //map: unsafe extern "C" fn(ti: *mut bindings::dm_target, bio: *mut bindings::bio) -> i32,
+
+        //ctr: bindings::dm_ctr_fn,
+        //dtr: bindings::dm_dtr_fn,
+        //map: bindings::dm_map_fn,
     ) -> Self {
         let mut t = bindings::target_type::default();
         t.name = name.as_char_ptr();
         t.module = module.0;
         t.version = version;
 
-        t.ctr = ctr;
-        t.dtr = dtr;
-        t.map = map;
+        t.ctr = Some(TargetType::ctr);
+        t.dtr = Some(TargetType::dtr);
+        t.map = Some(TargetType::map);
 
         Self { ptr: t }
     }
 }
-
 
 /// Call this in the Init of the module
 pub fn dm_register_target(t: &mut TargetType) {
