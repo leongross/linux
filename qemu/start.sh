@@ -5,7 +5,7 @@
 # https://uaf.io/exploitation/misc/2016/09/10/Kernel-Exploitation-for-Dummies.html
 KDIR=../
 GDB=1
-DEBUG=1
+DEBUG=0
 
 function debug {
     declare -A GDB_ARGS
