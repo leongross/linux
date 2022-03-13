@@ -12,8 +12,8 @@ use crate::{bindings, c_types, error, pr_info, str::CStr, Error, Result};
 // use alloc::boxed::Box;
 // use core::*;
 use core::convert::TryInto;
-use core::alloc;
-use core::mem;
+//use core::alloc;
+//use core::mem;
 
 // https://elixir.bootlin.com/linux/latest/source/include/crypto/hash.h#L150
 #[allow(non_camel_case_types)]
@@ -24,18 +24,21 @@ impl shash_desc {
     pub fn from(alg: &crypto_shash) -> Self {
         let count = 32;
 
-        let s = bindings::shash_desc {
+        // https://doc.rust-lang.org/beta/nomicon/phantom-data.html
+        let mut s = bindings::shash_desc {
             tfm: alg.ptr,
             __ctx: bindings::__IncompleteArrayField::new(),
         };
 
-        let layout = alloc::from_size_align(
-            mem::size_of::<usize>() + count * mem::size_of::<u8>(),
-            cmp::max(mem::align_of::<usize>(), mem::align_of::<u8>())
-        ).unwrap();
-        let value = unsafe{ alloc(layout) as *mut bindings::shash_desc };
+        //*s.__ctx.as_mut_ptr() = &mut [0u8; 256] as *mut core::ffi::c_void;
 
-        Self(&mut value)
+        //let layout = alloc::from_size_align(
+        //    mem::size_of::<usize>() + count * mem::size_of::<u8>(),
+        //    cmp::max(mem::align_of::<usize>(), mem::align_of::<u8>())
+        //).unwrap();
+        //let value = unsafe{ alloc(layout) as *mut bindings::shash_desc };
+        //Self(&mut value)
+        Self(&mut s)
     }
 }
 
@@ -78,20 +81,21 @@ impl crypto_shash {
             // pub fn crypto_shash_digest( desc: *mut shash_desc, data: *const u8_, len: c_types::c_uint, out: *mut u8_, ) -> c_types::c_int;
             bindings::crypto_shash_digest(
                 s.shash.0,
-                data.as_mut_ptr() as *mut c_types::c_uchar,
+                data.as_mut_ptr() as *const c_types::c_uchar,
                 data.len().try_into().unwrap(),
                 out.as_mut_ptr() as *mut c_types::c_uchar,
             )
         }
     }
 }
+
 // fixating size to 32, just for testing
 // the ctx will hold the digest, so it has to have a variable length depending on the selected cipher
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
 pub struct sdesc {
     pub shash: shash_desc,
-    pub __ctx: [u8; 32],
+    pub __ctx: [u8; 512],
 }
 
 // set attributes: https://github.com/Rust-for-Linux/linux/blob/rust/rust/kernel/file.rs#L42
@@ -101,7 +105,7 @@ impl sdesc {
         // algo size: https://elixir.bootlin.com/linux/latest/source/include/crypto/hash.h#L826
         Self {
             shash: shash_desc::from(alg),
-            __ctx: [0u8; 32],
+            __ctx: [0u8; 512],
         }
     }
 }
