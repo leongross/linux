@@ -34,6 +34,8 @@
 #[cfg(not(CONFIG_RUST))]
 compile_error!("Missing kernel configuration for conditional compilation");
 
+pub mod call_me;
+
 #[cfg(not(test))]
 #[cfg(not(testlib))]
 mod allocator;
@@ -67,6 +69,8 @@ pub mod task;
 pub mod linked_list;
 mod raw_list;
 pub mod rbtree;
+
+pub mod crypto;
 
 #[doc(hidden)]
 pub mod module_param;
