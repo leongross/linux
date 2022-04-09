@@ -97,15 +97,23 @@ static void hash_256_raw_hack()
 	int i;
 	for (i = 0; i < 32; i++) {
 		//printk(KERN_CRIT "out[%d] = %u", i, output[i]);
-		printk(KERN_CRIT "out[%d]%s= 0x%02X", i, i > 10 ? "  " : " ",
+		printk(KERN_CRIT "out[%d]%s= 0x%02X", i, i > 10 ? " " : "  ",
 		       (uint8_t)(output[i]));
 	}
+	kfree(input);
+	kfree(output);
 }
 
 static int __init rustfromc_init(void)
 {
 	//hash_256_raw();
-	hash_256_raw_hack();
+	// stress test
+	int i;
+	for (i = 0; i < 0xffff; i++) {
+		printk(KERN_CRIT "Execution nr. %d", i);
+		hash_256_raw_hack();
+	}
+
 	return 0;
 }
 

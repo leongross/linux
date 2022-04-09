@@ -107,7 +107,11 @@ impl crypto_shash {
 
         // https://elixir.bootlin.com/linux/latest/source/include/crypto/hash.h#L867
         unsafe {
-            // pub fn crypto_shash_digest( desc: *mut shash_desc, data: *const u8_, len: c_types::c_uint, out: *mut u8_, ) -> c_types::c_int;
+            // https://manpages.debian.org/testing/linux-manual-4.8/crypto_shash_digest.9.en.html
+            // Since there is only one update, digest can easily be used instead of calling
+            // * crypto_shash_init
+            // * crypto_shash_update
+            // * crypto_shash_final
             bindings::crypto_shash_digest(s.shash.0, data, len, out)
         }
     }
@@ -122,7 +126,6 @@ pub struct sdesc {
 }
 
 // set attributes: https://github.com/Rust-for-Linux/linux/blob/rust/rust/kernel/file.rs#L42
-// TODO: Make this a box
 impl sdesc {
     pub unsafe fn new(alg: &crypto_shash) -> sdesc {
         // algo size: https://elixir.bootlin.com/linux/latest/source/include/crypto/hash.h#L826
@@ -196,38 +199,6 @@ pub fn rust_hash_buffer_sha256_raw(
     let ret: c_types::c_int = unsafe { h.calc_hash_raw(input, output, len) };
     return ret;
 }
-
-// #[allow(non_camel_case_types)]
-// #[no_mangle]
-// pub fn rust_hash_buffer_sha256_raw_hack(
-//     input: &mut [c_uchar],
-//     output: &mut [c_uchar],
-//     len: c_uint,
-// ) -> c_int {
-//     let hash = c_str!("sha256");
-//     if hash.is_empty() {
-//         pr_info!("hash cannot be empty!");
-//         return 0;
-//     }
-//
-//     pr_info!(
-//         "input length: {}, output length: {}",
-//         input.len(),
-//         output.len()
-//     );
-//
-//     pr_info!("Calling hasher with hash {}", hash);
-//     let h = unsafe { crypto_shash::new(&hash, 0, 0) }.unwrap();
-//     let s: sdesc = unsafe { sdesc::new(&h) };
-//
-//     unsafe {
-//         h.calc_hash_raw(
-//             input.as_mut_ptr() as *mut c_uchar,
-//             output.as_mut_ptr() as *mut c_uchar,
-//             len,
-//         )
-//     }
-// }
 
 // let bytes = unsafe { core::slice::from_raw_parts(ptr as _, len as _) };
 #[allow(non_camel_case_types)]
