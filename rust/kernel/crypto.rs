@@ -1,19 +1,47 @@
 //! This implementation is primarily focussed on providing Sha256 since I need it the most
 //!
-//! C headers: [`include/crypto/hash.h>`](../../../../include/crypto/hash.h)
+//! C headers: [`include/crypto/hash.h`](../../../../include/crypto/hash.h)
 
 // https://doc.rust-lang.org/rustdoc/lints.html
 #![allow(rustdoc::broken_intra_doc_links)] // allows the lint, no diagnostics will be reported
 
+use crate::c_types::{c_char, c_int, c_uchar, c_uint};
 #[allow(unused_imports)]
-use crate::{bindings, c_types, error, pr_info, str::CStr, Error, Result};
-use core::convert::TryInto;
+use crate::{
+    bindings, c_str, c_types, error, pr_crit, pr_err, pr_info, str::BStr, str::CStr, Error, Result,
+};
+use core::{convert::TryInto, panic, str::FromStr};
+
+/// Supported Hashes for matching
+pub enum Hashes {
+    Sha1,
+    Sha224,
+    Sha256,
+    Sha384,
+    Sha512,
+}
+
+// impl FromStr for Hashes {
+//     type Err = ();
+//     fn from_str(input: &str) -> Result<Hashes, Self::Err> {
+//         match input {
+//             "sha1" => Ok(Hashes::Sha1),
+//             "sha224" => Ok(Hashes::Sha224),
+//             "sha256" => Ok(Hashes::Sha256),
+//             "sha384" => Ok(Hashes::Sha384),
+//             "sha512" => Ok(Hashes::Sha512),
+//             _ => Err(()),
+//         }
+//     }
+// }
+
 // https://elixir.bootlin.com/linux/latest/source/include/crypto/hash.h#L150
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
 pub struct shash_desc(*mut bindings::shash_desc);
 
 impl shash_desc {
+    #[no_mangle]
     pub fn from(alg: &crypto_shash) -> Self {
         let count = 32;
 
@@ -67,10 +95,27 @@ impl crypto_shash {
             )
         }
     }
+
+    // This is working!
+    pub unsafe fn calc_hash_raw(
+        &self,
+        data: *mut c_uchar,
+        out: *mut c_uchar,
+        len: c_uint,
+    ) -> c_types::c_int {
+        let s = unsafe { sdesc::new(&self) };
+
+        // https://elixir.bootlin.com/linux/latest/source/include/crypto/hash.h#L867
+        unsafe {
+            // pub fn crypto_shash_digest( desc: *mut shash_desc, data: *const u8_, len: c_types::c_uint, out: *mut u8_, ) -> c_types::c_int;
+            bindings::crypto_shash_digest(s.shash.0, data, len, out)
+        }
+    }
 }
 
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
+#[no_mangle]
 pub struct sdesc {
     pub shash: shash_desc,
     pub __ctx: [u8; 512],
@@ -86,4 +131,127 @@ impl sdesc {
             __ctx: [0u8; 512],
         }
     }
+}
+
+#[allow(non_camel_case_types)]
+#[no_mangle]
+pub fn rust_hash_buffer(
+    input: &mut [u8],
+    output: &mut [u8],
+    hash: *const c_char,
+) -> c_types::c_int {
+    let hash = unsafe { CStr::from_char_ptr(hash) };
+    if hash.is_empty() {
+        pr_info!("hash cannot be empty!");
+        return 0;
+    }
+
+    pr_info!("Calling hasher with hash {}", hash.to_str().unwrap());
+    let h = unsafe { crypto_shash::new(&hash, 0, 0) }.unwrap();
+    let s: sdesc = unsafe { sdesc::new(&h) };
+
+    let ret: c_types::c_int = unsafe { h.calc_hash(input, output) };
+    //pr_info!("{:#02X?}", output);
+    return ret;
+}
+
+#[allow(non_camel_case_types)]
+#[no_mangle]
+pub fn rust_hash_buffer_sha256(input: &mut [u8], output: &mut [u8]) -> c_types::c_int {
+    let hash = c_str!("sha256");
+    if hash.is_empty() {
+        pr_info!("hash cannot be empty!");
+        return 0;
+    }
+
+    pr_info!("Calling hasher with hash {}", hash);
+    let h = unsafe { crypto_shash::new(&hash, 0, 0) }.unwrap();
+    let s: sdesc = unsafe { sdesc::new(&h) };
+
+    let ret: c_types::c_int = unsafe { h.calc_hash(input, output) };
+    //pr_info!("{:#02X?}", output);
+    return ret;
+}
+
+#[allow(non_camel_case_types)]
+#[no_mangle]
+pub fn rust_hash_buffer_sha256_raw(
+    input: *mut c_uchar,
+    output: *mut c_uchar,
+    len: c_uint,
+) -> c_int {
+    let hash = c_str!("sha256");
+    if input.is_null() {
+        panic!("Invalid input");
+    }
+
+    if output.is_null() {
+        panic!("Invalid output")
+    }
+
+    pr_info!("Calling hasher with hash {}", hash);
+    let h = unsafe { crypto_shash::new(&hash, 0, 0) }.unwrap();
+    let s: sdesc = unsafe { sdesc::new(&h) };
+
+    let ret: c_types::c_int = unsafe { h.calc_hash_raw(input, output, len) };
+    return ret;
+}
+
+// #[allow(non_camel_case_types)]
+// #[no_mangle]
+// pub fn rust_hash_buffer_sha256_raw_hack(
+//     input: &mut [c_uchar],
+//     output: &mut [c_uchar],
+//     len: c_uint,
+// ) -> c_int {
+//     let hash = c_str!("sha256");
+//     if hash.is_empty() {
+//         pr_info!("hash cannot be empty!");
+//         return 0;
+//     }
+//
+//     pr_info!(
+//         "input length: {}, output length: {}",
+//         input.len(),
+//         output.len()
+//     );
+//
+//     pr_info!("Calling hasher with hash {}", hash);
+//     let h = unsafe { crypto_shash::new(&hash, 0, 0) }.unwrap();
+//     let s: sdesc = unsafe { sdesc::new(&h) };
+//
+//     unsafe {
+//         h.calc_hash_raw(
+//             input.as_mut_ptr() as *mut c_uchar,
+//             output.as_mut_ptr() as *mut c_uchar,
+//             len,
+//         )
+//     }
+// }
+
+// let bytes = unsafe { core::slice::from_raw_parts(ptr as _, len as _) };
+#[allow(non_camel_case_types)]
+#[no_mangle]
+pub fn rust_hash_buffer_raw_hack(
+    input: *mut c_uchar,
+    output: *mut c_uchar,
+    len: c_uint,
+    hash: *const c_char,
+) -> c_int {
+    if input.is_null() {
+        panic!("Invalid input");
+    }
+
+    if output.is_null() {
+        panic!("Invalid output")
+    }
+
+    let hash = unsafe { CStr::from_char_ptr(hash) };
+    pr_info!("Calling hasher with hash {}", hash);
+
+    let h = unsafe { crypto_shash::new(&hash, 0, 0) }.unwrap();
+    let s: sdesc = unsafe { sdesc::new(&h) };
+
+    let ret: c_types::c_int = unsafe { h.calc_hash_raw(input, output, len) };
+    return ret;
 }
