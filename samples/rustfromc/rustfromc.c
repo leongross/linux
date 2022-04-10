@@ -2,8 +2,27 @@
 #include <linux/printk.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <crypto/hash.h>
 
 #include "../../lib/rust.h"
+
+struct sdesc {
+	struct shash_desc shash;
+	char ctx[];
+};
+
+static struct sdesc *init_sdesc(struct crypto_shash *alg)
+{
+	struct sdesc *sdesc;
+	int size;
+
+	size = sizeof(struct shash_desc) + crypto_shash_descsize(alg);
+	sdesc = kmalloc(size, GFP_KERNEL);
+	if (!sdesc)
+		return ERR_PTR(-ENOMEM);
+	sdesc->shash.tfm = alg;
+	return sdesc;
+}
 
 static void test_0()
 {
@@ -104,14 +123,52 @@ static void hash_256_raw_hack()
 	kfree(output);
 }
 
+static void hash_salt_rust()
+{
+	struct crypto_shash *alg;
+	struct sdesc *hsdesc;
+	char *hash_alg_name = "sha256";
+
+	alg = crypto_alloc_shash(hash_alg_name, 0, 0);
+	hsdesc = init_sdesc(alg);
+
+	printk(KERN_CRIT
+	       "Calling rust crypto function from C (in-tree) (%s@%s)",
+	       __FILE__, __func__);
+	uint8_t *input = (uint8_t *)kzalloc(sizeof(char) * 32, GFP_KERNEL);
+	uint8_t *output = (uint8_t *)kzalloc(sizeof(char) * 32, GFP_KERNEL);
+
+	unsigned char salt[] = { 0, 0 };
+	crypto_shash_init(&hsdesc->shash);
+	int ret = rust_calc_hash_salt_c(input, 32, output, salt, 2,
+					&hsdesc->shash);
+
+	//printk(KERN_CRIT "Return code of hashing: %d, ", ret);
+	//printk(KERN_CONT "Buffer: ");
+	//int i;
+	//for (i = 0; i < 32; i++) {
+	//	//printk(KERN_CRIT "out[%d] = %u", i, output[i]);
+	//	printk(KERN_CRIT "out[%d]%s= 0x%02X", i, i > 9 ? " " : "  ",
+	//	       (uint8_t)(output[i]));
+	//}
+	kfree(input);
+	kfree(output);
+}
+
 static int __init rustfromc_init(void)
 {
 	//hash_256_raw();
+
 	// stress test
+	//int i;
+	//for (i = 0; i < 0xffff; i++) {
+	//	printk(KERN_CRIT "Execution nr. %d", i);
+	//	hash_256_raw_hack();
+	//}
 	int i;
-	for (i = 0; i < 0xffff; i++) {
-		printk(KERN_CRIT "Execution nr. %d", i);
-		hash_256_raw_hack();
+	for (i = 0; i < 0xFFFFFF; i++) {
+		hash_salt_rust();
+		printk(KERN_CRIT "Ran %d times", i);
 	}
 
 	return 0;

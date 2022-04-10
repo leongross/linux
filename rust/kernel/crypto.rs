@@ -8,9 +8,10 @@
 use crate::c_types::{c_char, c_int, c_uchar, c_uint};
 #[allow(unused_imports)]
 use crate::{
-    bindings, c_str, c_types, error, pr_crit, pr_err, pr_info, str::BStr, str::CStr, Error, Result,
+    bindings, c_str, c_types, error, panic, pr_crit, pr_err, pr_info, str::BStr, str::CStr, Error,
+    Result,
 };
-use core::{convert::TryInto, panic, str::FromStr};
+use core::{convert::TryInto, panic};
 
 /// Supported Hashes for matching
 pub enum Hashes {
@@ -20,20 +21,6 @@ pub enum Hashes {
     Sha384,
     Sha512,
 }
-
-// impl FromStr for Hashes {
-//     type Err = ();
-//     fn from_str(input: &str) -> Result<Hashes, Self::Err> {
-//         match input {
-//             "sha1" => Ok(Hashes::Sha1),
-//             "sha224" => Ok(Hashes::Sha224),
-//             "sha256" => Ok(Hashes::Sha256),
-//             "sha384" => Ok(Hashes::Sha384),
-//             "sha512" => Ok(Hashes::Sha512),
-//             _ => Err(()),
-//         }
-//     }
-// }
 
 // https://elixir.bootlin.com/linux/latest/source/include/crypto/hash.h#L150
 #[allow(non_camel_case_types)]
@@ -69,6 +56,8 @@ pub struct crypto_shash {
     pub(crate) ptr: *mut bindings::crypto_shash,
 }
 
+// https://www.spinics.net/lists/linux-crypto/msg11007.html
+// Use shash despite dm-verity using ahash, because it requires less configuration
 impl crypto_shash {
     // https://elixir.bootlin.com/linux/latest/source/include/crypto/hash.h#L718
     // use &'static CStr instead of &str, see amba.rs as reference
@@ -96,8 +85,36 @@ impl crypto_shash {
         }
     }
 
+    // pub unsafe fn calc_hash_salt_rust(
+    //     &self,
+    //     data: &mut [u8],
+    //     out: &mut [u8],
+    //     salt: &mut [u8],
+    //     desc: sdesc,
+    // ) -> c_int {
+    //     if let r = unsafe { bindings::crypto_shash_init(desc.shash) } != 0 {
+    //         panic("Error init crypto")
+    //     }
+    //
+    //     if let r =
+    //         bindings::crypto_shash_update(desc, salt.as_ptr() as *mut c_char, salt.len()) != 0
+    //     {
+    //         panic!("Error update crypto (salt)")
+    //     }
+    //
+    //     if let r = bindings::crypto_shash_update(desc, data, data.len()) != 0 {
+    //         panic!("Error update crypto (data)");
+    //     }
+    //
+    //     if let r = bindings::crypto_shash_final(desc, out.as_ptr() as *mut c_uint) != 0 {
+    //         panic!("Error final crypto");
+    //     } else {
+    //         0
+    //     }
+    // }
+
     // This is working!
-    pub unsafe fn calc_hash_raw(
+    pub unsafe fn calc_hash_digest_c(
         &self,
         data: *mut c_uchar,
         out: *mut c_uchar,
@@ -117,9 +134,15 @@ impl crypto_shash {
     }
 }
 
+// Similar weird like the missing init function, the free function misses, although the alloc function is available
+// impl Drop for crypto_shash {
+//     fn drop(&mut self) {
+//         bindings::crypto_free_shash(self.ptr);
+//     }
+// }
+
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
-#[no_mangle]
 pub struct sdesc {
     pub shash: shash_desc,
     pub __ctx: [u8; 512],
@@ -176,29 +199,29 @@ pub fn rust_hash_buffer_sha256(input: &mut [u8], output: &mut [u8]) -> c_types::
     return ret;
 }
 
-#[allow(non_camel_case_types)]
-#[no_mangle]
-pub fn rust_hash_buffer_sha256_raw(
-    input: *mut c_uchar,
-    output: *mut c_uchar,
-    len: c_uint,
-) -> c_int {
-    let hash = c_str!("sha256");
-    if input.is_null() {
-        panic!("Invalid input");
-    }
-
-    if output.is_null() {
-        panic!("Invalid output")
-    }
-
-    pr_info!("Calling hasher with hash {}", hash);
-    let h = unsafe { crypto_shash::new(&hash, 0, 0) }.unwrap();
-    let s: sdesc = unsafe { sdesc::new(&h) };
-
-    let ret: c_types::c_int = unsafe { h.calc_hash_raw(input, output, len) };
-    return ret;
-}
+//#[allow(non_camel_case_types)]
+//#[no_mangle]
+//pub fn rust_hash_buffer_sha256_raw(
+//    input: *mut c_uchar,
+//    output: *mut c_uchar,
+//    len: c_uint,
+//) -> c_int {
+//    let hash = c_str!("sha256");
+//    if input.is_null() {
+//        panic!("Invalid input");
+//    }
+//
+//    if output.is_null() {
+//        panic!("Invalid output")
+//    }
+//
+//    pr_info!("Calling hasher with hash {}", hash);
+//    let h = unsafe { crypto_shash::new(&hash, 0, 0) }.unwrap();
+//    let s: sdesc = unsafe { sdesc::new(&h) };
+//
+//    let ret: c_types::c_int = unsafe { h.calc_hash(input, output, len) };
+//    return ret;
+//}
 
 // let bytes = unsafe { core::slice::from_raw_parts(ptr as _, len as _) };
 #[allow(non_camel_case_types)]
@@ -223,6 +246,44 @@ pub fn rust_hash_buffer_raw_hack(
     let h = unsafe { crypto_shash::new(&hash, 0, 0) }.unwrap();
     let s: sdesc = unsafe { sdesc::new(&h) };
 
-    let ret: c_types::c_int = unsafe { h.calc_hash_raw(input, output, len) };
+    let ret: c_types::c_int = unsafe { h.calc_hash_digest_c(input, output, len) };
     return ret;
+}
+
+/// Calculate the hash of a shash_desc with a salt.
+/// The `bindings::shash_desc` structure has to be initialized with `crypto_shash_init` beforehand.
+#[no_mangle]
+pub unsafe fn rust_calc_hash_salt_c(
+    data: *mut c_uchar,
+    data_len: c_uint,
+    out: *mut c_uchar,
+    salt: *mut c_uchar,
+    salt_size: c_uint,
+    desc: *mut bindings::shash_desc,
+) -> c_int {
+    // added manually
+    // extern "C" {
+    //     pub fn crypto_shash_init(desc: *mut shash_desc) -> c_types::c_int;
+    // }
+    //let r: c_int = unsafe { bindings::crypto_shash_init(desc) };
+    //if r != 0 {
+    //    panic!("Error init crypto")
+    //}
+
+    let r = unsafe { bindings::crypto_shash_update(desc, salt, salt_size) };
+    if r != 0 {
+        panic!("Error updating crypto (salt)");
+    }
+
+    let r = unsafe { bindings::crypto_shash_update(desc, data, data_len) };
+    if r != 0 {
+        panic!("Error updating crypto (data)");
+    }
+
+    let r = unsafe { bindings::crypto_shash_final(desc, out) };
+    if r != 0 {
+        panic!("Error finalizing crypto");
+    } else {
+        0
+    }
 }
