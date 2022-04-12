@@ -35,6 +35,7 @@
 #include <linux/irqdomain.h>
 #include <linux/amba/bus.h>
 #include <linux/of_device.h>
+#include <crypto/hash.h>
 
 __noreturn void rust_helper_BUG(void)
 {
@@ -54,13 +55,15 @@ int rust_helper_clk_prepare_enable(struct clk *clk)
 }
 EXPORT_SYMBOL_GPL(rust_helper_clk_prepare_enable);
 
-unsigned long rust_helper_copy_from_user(void *to, const void __user *from, unsigned long n)
+unsigned long rust_helper_copy_from_user(void *to, const void __user *from,
+					 unsigned long n)
 {
 	return copy_from_user(to, from, n);
 }
 EXPORT_SYMBOL_GPL(rust_helper_copy_from_user);
 
-unsigned long rust_helper_copy_to_user(void __user *to, const void *from, unsigned long n)
+unsigned long rust_helper_copy_to_user(void __user *to, const void *from,
+				       unsigned long n)
 {
 	return copy_to_user(to, from, n);
 }
@@ -158,26 +161,26 @@ EXPORT_SYMBOL_GPL(rust_helper_readq_relaxed);
 
 void rust_helper_writeb_relaxed(u8 value, volatile void __iomem *addr)
 {
-        writeb_relaxed(value, addr);
+	writeb_relaxed(value, addr);
 }
 EXPORT_SYMBOL_GPL(rust_helper_writeb_relaxed);
 
 void rust_helper_writew_relaxed(u16 value, volatile void __iomem *addr)
 {
-        writew_relaxed(value, addr);
+	writew_relaxed(value, addr);
 }
 EXPORT_SYMBOL_GPL(rust_helper_writew_relaxed);
 
 void rust_helper_writel_relaxed(u32 value, volatile void __iomem *addr)
 {
-        writel_relaxed(value, addr);
+	writel_relaxed(value, addr);
 }
 EXPORT_SYMBOL_GPL(rust_helper_writel_relaxed);
 
 #ifdef CONFIG_64BIT
 void rust_helper_writeq_relaxed(u64 value, volatile void __iomem *addr)
 {
-        writeq_relaxed(value, addr);
+	writeq_relaxed(value, addr);
 }
 EXPORT_SYMBOL_GPL(rust_helper_writeq_relaxed);
 #endif
@@ -260,7 +263,8 @@ size_t rust_helper_copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
 }
 EXPORT_SYMBOL_GPL(rust_helper_copy_from_iter);
 
-size_t rust_helper_copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i)
+size_t rust_helper_copy_to_iter(const void *addr, size_t bytes,
+				struct iov_iter *i)
 {
 	return copy_to_iter(addr, bytes, i);
 }
@@ -302,16 +306,13 @@ void *rust_helper_amba_get_drvdata(struct amba_device *dev)
 }
 EXPORT_SYMBOL_GPL(rust_helper_amba_get_drvdata);
 
-void *
-rust_helper_platform_get_drvdata(const struct platform_device *pdev)
+void *rust_helper_platform_get_drvdata(const struct platform_device *pdev)
 {
 	return platform_get_drvdata(pdev);
 }
 EXPORT_SYMBOL_GPL(rust_helper_platform_get_drvdata);
 
-void
-rust_helper_platform_set_drvdata(struct platform_device *pdev,
-				 void *data)
+void rust_helper_platform_set_drvdata(struct platform_device *pdev, void *data)
 {
 	return platform_set_drvdata(pdev, data);
 }
@@ -348,13 +349,13 @@ struct task_struct *rust_helper_get_current(void)
 }
 EXPORT_SYMBOL_GPL(rust_helper_get_current);
 
-void rust_helper_get_task_struct(struct task_struct * t)
+void rust_helper_get_task_struct(struct task_struct *t)
 {
 	get_task_struct(t);
 }
 EXPORT_SYMBOL_GPL(rust_helper_get_task_struct);
 
-void rust_helper_put_task_struct(struct task_struct * t)
+void rust_helper_put_task_struct(struct task_struct *t)
 {
 	put_task_struct(t);
 }
@@ -474,15 +475,13 @@ void *rust_helper_irq_desc_get_handler_data(struct irq_desc *desc)
 }
 EXPORT_SYMBOL_GPL(rust_helper_irq_desc_get_handler_data);
 
-void rust_helper_chained_irq_enter(struct irq_chip *chip,
-				   struct irq_desc *desc)
+void rust_helper_chained_irq_enter(struct irq_chip *chip, struct irq_desc *desc)
 {
 	chained_irq_enter(chip, desc);
 }
 EXPORT_SYMBOL_GPL(rust_helper_chained_irq_enter);
 
-void rust_helper_chained_irq_exit(struct irq_chip *chip,
-				   struct irq_desc *desc)
+void rust_helper_chained_irq_exit(struct irq_chip *chip, struct irq_desc *desc)
 {
 	chained_irq_exit(chip, desc);
 }
@@ -494,17 +493,34 @@ const struct cred *rust_helper_get_cred(const struct cred *cred)
 }
 EXPORT_SYMBOL_GPL(rust_helper_get_cred);
 
-void rust_helper_put_cred(const struct cred *cred) {
+void rust_helper_put_cred(const struct cred *cred)
+{
 	put_cred(cred);
 }
 EXPORT_SYMBOL_GPL(rust_helper_put_cred);
 
-const struct of_device_id *rust_helper_of_match_device(
-		const struct of_device_id *matches, const struct device *dev)
+const struct of_device_id *
+rust_helper_of_match_device(const struct of_device_id *matches,
+			    const struct device *dev)
 {
 	return of_match_device(matches, dev);
 }
 EXPORT_SYMBOL_GPL(rust_helper_of_match_device);
+
+/*
+ * Helpers for hashing, makes static inline functions available for bindgen.
+*/
+int rust_helper_crypto_shash_init(struct shash_desc *desc)
+{
+	return crypto_shash_init(desc);
+}
+EXPORT_SYMBOL_GPL(rust_helper_crypto_shash_init);
+
+void rust_helper_crypto_free_shash(struct crypto_shash *tfm)
+{
+	return crypto_free_shash(tfm);
+}
+EXPORT_SYMBOL(rust_helper_crypto_free_shash);
 
 /* We use bindgen's --size_t-is-usize option to bind the C size_t type
  * as the Rust usize type, so we can use it in contexts where Rust
@@ -522,8 +538,6 @@ EXPORT_SYMBOL_GPL(rust_helper_of_match_device);
  * your platform such that size_t matches uintptr_t (i.e., to increase
  * size_t, because uintptr_t has to be at least as big as size_t).
 */
-static_assert(
-	sizeof(size_t) == sizeof(uintptr_t) &&
-	__alignof__(size_t) == __alignof__(uintptr_t),
-	"Rust code expects C size_t to match Rust usize"
-);
+static_assert(sizeof(size_t) == sizeof(uintptr_t) &&
+		      __alignof__(size_t) == __alignof__(uintptr_t),
+	      "Rust code expects C size_t to match Rust usize");
