@@ -58,13 +58,27 @@ fn test_sha512() {
     pr_info!("last byte: {:x?}", &output[63])
 }
 
+#[no_mangle]
+fn test_rust_hash_salt_sha256() {
+    let hash = unsafe { crypto::crypto_shash::new(c_str!("sha256"), 0, 0).unwrap() };
+    let input = [0u8; 32];
+    let mut output = [0u8; 32];
+    let salt = [0u8; 32];
+    hash.calc_hash_salt(&input, &salt, &mut output);
+
+    pr_info!("Input: {:?}", &input);
+    pr_info!("Salt: {:?}", &salt);
+    pr_info!("Hash: {:?}", &output);
+}
+
 impl KernelModule for Hashing {
     fn init(_name: &'static CStr, _module: &'static ThisModule) -> Result<Self> {
         pr_info!("Hashing module!");
 
-        test_sha256_0();
-        test_sha256_1();
-        test_sha512();
+        //test_sha256_0();
+        //test_sha256_1();
+        //test_sha512();
+        test_rust_hash_salt_sha256();
 
         Ok(Hashing {})
     }

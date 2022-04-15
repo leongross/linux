@@ -13,7 +13,7 @@ int rust_hash_buffer_sha256_raw(char *input, char *output, int len);
 int rust_hash_buffer_raw_hack(unsigned char *input, unsigned char *output,
 			      unsigned int len, char *hash);
 
-int rust_calc_hash_salt_c(unsigned char *data, unsigned int data_len,
+int rust_calc_hash_salt_c(const unsigned char *data, unsigned int data_len,
 			  unsigned char *out, unsigned char *salt,
 			  unsigned int salt_size, struct shash_desc *sdesc);
 #else
